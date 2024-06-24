@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  db:
+    platform: linux/x86_64
+    image: mysql:8.0.28
+    command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - ${MYSQL_PORT}:${MYSQL_PORT}
+    restart: always
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  django:
+    build: django
+    command: [ "./wait-for-mysql.sh", "db", "python", "manage.py", "runserver", "0.0.0.0:8000" ]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./django/src:/src
+      - ./django/src/static:/src/static
+      - ./wait-for-mysql.sh:/src/wait-for-mysql.sh
+    environment:
+      PYTHONPATH: /src
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      - db
+
+
+volumes:
+  mysql-data:
